@@ -10,27 +10,16 @@
 #include <signal.h>
 
 #include <lua_config.h>
-#ifdef LUA_ENABLED
-#include <lua_socket.h>
-#endif
 #include <pg_delay.h>
 
 #include "pktgen-main.h"
 
 #include "pktgen.h"
-#ifdef LUA_ENABLED
-#include "lpktgenlib.h"
-#include "lauxlib.h"
-#endif
 #include "pktgen-cmds.h"
 #include "pktgen-cpu.h"
 #include "pktgen-display.h"
 #include "pktgen-log.h"
 #include "cli-functions.h"
-
-#ifdef GUI
-int pktgen_gui_main(int argc, char *argv[]);
-#endif
 
 /**************************************************************************//**
  *
@@ -49,26 +38,6 @@ pktgen_l2p_dump(void)
 {
 	pg_raw_dump_l2p(pktgen.l2p);
 }
-
-#ifdef LUA_ENABLED
-/**************************************************************************//**
- *
- * pktgen_get_lua - Get Lua state pointer.
- *
- * DESCRIPTION
- * Get the Lua state pointer value.
- *
- * RETURNS: Lua pointer
- *
- * SEE ALSO:
- */
-
-void *
-pktgen_get_lua(void)
-{
-	return pktgen.ld->L;
-}
-#endif
 
 /**************************************************************************//**
  *
@@ -89,11 +58,6 @@ pktgen_usage(const char *prgname)
 		"Usage: %s [EAL options] -- [-h] [-v] [-P] [-G] [-T] [-f cmd_file] [-l log_file] [-s P:PCAP_file] [-m <string>]\n"
 		"  -s P:file    PCAP packet stream file, 'P' is the port number\n"
 		"  -s P:file0,file1,... list of PCAP packet stream files per queue, 'P' is the port number\n"
-#ifdef LUA_ENABLED
-		"  -f filename  Command file (.pkt) to execute or a Lua script (.lua) file\n"
-#else
-		"  -f filename  Command file (.pkt) to execute\n"
-#endif
 		"  -l filename  Write log to filename\n"
 		"  -P           Enable PROMISCUOUS mode on all ports\n"
 		"  -g address   Optional IP address and port number default is (localhost:0x5606)\n"
@@ -372,18 +336,6 @@ sig_handler(int v __rte_unused)
 	exit(-1);
 }
 
-#ifdef LUA_ENABLED
-static int
-pktgen_lua_dofile(void *ld, const char * filename)
-{
-	int ret;
-
-	ret = lua_dofile((luaData_t *)ld, filename);
-
-	return ret;
-}
-#endif
-
 RTE_FINI(pktgen_fini)
 {
 	scrn_setw(1);	/* Reset the window size, from possible crash run. */
@@ -455,18 +407,6 @@ main(int argc, char **argv)
 	if (pktgen_cli_create())
 		return -1;
 
-#ifdef LUA_ENABLED
-	lua_newlib_add(pktgen_lua_openlib, 0);
-
-	/* Open the Lua script handler. */
-	if ( (pktgen.ld = lua_create_instance()) == NULL) {
-		pktgen_log_error("Failed to open Lua pktgen support library");
-		return -1;
-	}
-	cli_set_lua_callback(pktgen_lua_dofile);
-	cli_set_user_state(pktgen.ld);
-#endif
-
 	/* parse application arguments (after the EAL ones) */
 	ret = pktgen_parse_args(argc, argv);
 	if (ret < 0)
@@ -532,25 +472,10 @@ main(int argc, char **argv)
 			scrn_setw(1);
 			scrn_pos(this_scrn->nrows, 1);
 		}
-#ifdef LUA_ENABLED
-		pktgen.ld_sock = lua_create_instance();
-
-		lua_start_socket(pktgen.ld_sock,
-				&pktgen.thread,
-				pktgen.hostname,
-				pktgen.socket_port);
-#endif
-#ifdef GUI
-		pktgen_gui_main(argc, argv);
-#endif
 	}
 
 	pktgen_log_info("=== Run CLI\n");
 	pktgen_cli_start();
-
-#ifdef LUA_ENABLED
-	lua_execute_close(pktgen.ld);
-#endif
 
 	pktgen_stop_running();
 

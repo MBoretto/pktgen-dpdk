@@ -79,12 +79,6 @@
 #include <coremap.h>
 #include <lscpu.h>
 #include <utils.h>
-
-#ifdef LUA_ENABLED
-#include "lua_config.h"
-#include "lauxlib.h"
-#endif
-
 #include "pktgen-port-cfg.h"
 #include "pktgen-capture.h"
 #include "pktgen-log.h"
@@ -95,10 +89,6 @@
 #include "pktgen-version.h"
 
 #include <cli.h>
-
-#ifdef LUA_ENABLED
-#include <lua_config.h>
-#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -267,10 +257,6 @@ typedef union {
 /* Ethernet addresses of ports */
 typedef struct pktgen_s {
 	struct cmdline *cl;	/**< Command Line information pointer */
-#ifdef LUA_ENABLED
-	luaData_t *ld;		/**< General Lua Data pointer */
-	luaData_t *ld_sock;	/**< Info for Lua Socket */
-#endif
 	char *hostname;		/**< GUI hostname */
 	int verbose;		/**< Verbose flag */
 

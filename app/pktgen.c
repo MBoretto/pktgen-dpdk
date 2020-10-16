@@ -17,18 +17,13 @@
 #include <rte_cycles.h>
 
 #include "pktgen.h"
-#include "pktgen-gre.h"
-#include "pktgen-tcp.h"
 #include "pktgen-ipv4.h"
-#include "pktgen-ipv6.h"
 #include "pktgen-udp.h"
 #include "pktgen-arp.h"
-#include "pktgen-vlan.h"
 #include "pktgen-cpu.h"
 #include "pktgen-display.h"
 #include "pktgen-random.h"
 #include "pktgen-log.h"
-#include "pktgen-gtpu.h"
 #include "pktgen-cfg.h"
 #include "pktgen-rate.h"
 
@@ -209,7 +204,7 @@ pktgen_find_matching_ipdst(port_info_t *info, uint32_t addr)
 }
 
 static __inline__ tstamp_t *
-pktgen_tstamp_pointer(port_info_t *info, struct rte_mbuf *m, int32_t seq_idx)
+pktgen_tstamp_pointer(struct rte_mbuf *m)
 {
 	tstamp_t *tstamp;
 	char *p;
@@ -218,11 +213,9 @@ pktgen_tstamp_pointer(port_info_t *info, struct rte_mbuf *m, int32_t seq_idx)
 
 	p += sizeof(struct pg_ether_hdr);
 
-	p += (info->seq_pkt[seq_idx].ethType == PG_ETHER_TYPE_IPv4) ?
-	     sizeof(struct pg_ipv4_hdr) : sizeof(struct pg_ipv6_hdr);
+	p += sizeof(struct pg_ipv4_hdr);
 
-	p += (info->seq_pkt[seq_idx].ipProto == PG_IPPROTO_UDP) ?
-	     sizeof(struct pg_udp_hdr) : sizeof(struct pg_tcp_hdr);
+	p += sizeof(struct pg_udp_hdr);
 
 	/* Force pointer to be aligned correctly */
 	p = RTE_PTR_ALIGN_CEIL(p, sizeof(uint64_t));
@@ -244,7 +237,7 @@ pktgen_tstamp_apply(port_info_t *info __rte_unused,
 	for (i = 0; i < cnt; i++) {
 		tstamp_t *tstamp;
 
-		tstamp = pktgen_tstamp_pointer(info, mbufs[i], seq_idx);
+		tstamp = pktgen_tstamp_pointer(mbufs[i]);
 
 		tstamp->timestamp  = rte_rdtsc_precise();
 		tstamp->magic      = TSTAMP_MAGIC;
@@ -335,16 +328,8 @@ static __inline__ void
 pktgen_recv_tstamp(port_info_t *info, struct rte_mbuf **pkts, uint16_t nb_pkts)
 {
 	uint32_t flags;
-	int32_t seq_idx;
 
 	flags = rte_atomic32_read(&info->port_flags);
-
-	if (flags & SEND_RANGE_PKTS)
-		seq_idx = RANGE_PKT;
-	else if (flags & SEND_RATE_PACKETS)
-		seq_idx = RATE_PKT;
-	else
-		seq_idx = SINGLE_PKT;
 
 	if (flags & (SEND_LATENCY_PKTS | SEND_RATE_PACKETS)) {
 		int i;
@@ -352,7 +337,7 @@ pktgen_recv_tstamp(port_info_t *info, struct rte_mbuf **pkts, uint16_t nb_pkts)
 
 		for (i = 0; i < nb_pkts; i++) {
 			tstamp_t *tstamp;
-			tstamp = pktgen_tstamp_pointer(info, pkts[i], seq_idx);
+			tstamp = pktgen_tstamp_pointer(pkts[i]);
 
 			if (tstamp->magic == TSTAMP_MAGIC) {
 				lat = (rte_rdtsc_precise() - tstamp->timestamp);
@@ -477,34 +462,10 @@ pktgen_packet_ctor(port_info_t *info, int32_t seq_idx, int32_t type)
 
 	flags = rte_atomic32_read(&info->port_flags);
 
-	/* Add GRE header and adjust pg_ether_hdr pointer if requested */
-	if (flags & SEND_GRE_IPv4_HEADER)
-		l3_hdr = pktgen_gre_hdr_ctor(info, pkt, (greIp_t *)l3_hdr);
-	else if (flags & SEND_GRE_ETHER_HEADER)
-		l3_hdr = pktgen_gre_ether_hdr_ctor(info, pkt, (greEther_t *)l3_hdr);
-	else
-		l3_hdr = pktgen_ether_hdr_ctor(info, pkt, eth);
+	l3_hdr = pktgen_ether_hdr_ctor(info, pkt, eth);
 
 	if (likely(pkt->ethType == PG_ETHER_TYPE_IPv4)) {
-		if (likely(pkt->ipProto == PG_IPPROTO_TCP)) {
-			if (pkt->dport != PG_IPPROTO_L4_GTPU_PORT) {
-				/* Construct the TCP header */
-				pktgen_tcp_hdr_ctor(pkt, l3_hdr, PG_ETHER_TYPE_IPv4);
-
-				/* IPv4 Header constructor */
-				pktgen_ipv4_ctor(pkt, l3_hdr);
-			} else {
-				/* Construct the GTP-U header */
-				pktgen_gtpu_hdr_ctor(pkt, l3_hdr, pkt->ipProto,
-				                     GTPu_VERSION | GTPu_PT_FLAG, 0, 0, 0);
-
-				/* Construct the TCP header */
-				pktgen_tcp_hdr_ctor(pkt, l3_hdr, PG_ETHER_TYPE_IPv4);
-
-				/* IPv4 Header constructor */
-				pktgen_ipv4_ctor(pkt, l3_hdr);
-			}
-		} else if (pkt->ipProto == PG_IPPROTO_UDP) {
+		if (likely(pkt->ipProto == PG_IPPROTO_UDP)) {
 			if (flags & SEND_VXLAN_PACKETS) {
 				/* Construct the UDP header */
 				pkt->dport = VXLAN_PORT_ID;
@@ -512,17 +473,7 @@ pktgen_packet_ctor(port_info_t *info, int32_t seq_idx, int32_t type)
 
 				/* IPv4 Header constructor */
 				pktgen_ipv4_ctor(pkt, l3_hdr);
-			} else if (pkt->dport != PG_IPPROTO_L4_GTPU_PORT) {
-				/* Construct the UDP header */
-				pktgen_udp_hdr_ctor(pkt, l3_hdr, PG_ETHER_TYPE_IPv4);
-
-				/* IPv4 Header constructor */
-				pktgen_ipv4_ctor(pkt, l3_hdr);
 			} else {
-				/* Construct the GTP-U header */
-				pktgen_gtpu_hdr_ctor(pkt, l3_hdr, pkt->ipProto,
-				                     GTPu_VERSION | GTPu_PT_FLAG, 0, 0, 0);
-
 				/* Construct the UDP header */
 				pktgen_udp_hdr_ctor(pkt, l3_hdr, PG_ETHER_TYPE_IPv4);
 
@@ -575,20 +526,6 @@ pktgen_packet_ctor(port_info_t *info, int32_t seq_idx, int32_t type)
 
 			/* IPv4 Header constructor */
 			pktgen_ipv4_ctor(pkt, l3_hdr);
-		}
-	} else if (pkt->ethType == PG_ETHER_TYPE_IPv6) {
-		if (pkt->ipProto == PG_IPPROTO_TCP) {
-			/* Construct the TCP header */
-			pktgen_tcp_hdr_ctor(pkt, l3_hdr, PG_ETHER_TYPE_IPv6);
-
-			/* IPv6 Header constructor */
-			pktgen_ipv6_ctor(pkt, l3_hdr);
-		} else if (pkt->ipProto == PG_IPPROTO_UDP) {
-			/* Construct the UDP header */
-			pktgen_udp_hdr_ctor(pkt, l3_hdr, PG_ETHER_TYPE_IPv6);
-
-			/* IPv6 Header constructor */
-			pktgen_ipv6_ctor(pkt, l3_hdr);
 		}
 	} else if (pkt->ethType == PG_ETHER_TYPE_ARP) {
 		/* Start from Ethernet header */
@@ -708,14 +645,6 @@ pktgen_packet_classify(struct rte_mbuf *m, int pid)
 			info->stats.ip_pkts++;
 			pktgen_process_ping4(m, pid, 0);
 			break;
-		case PG_ETHER_TYPE_IPv6:
-			info->stats.ipv6_pkts++;
-			pktgen_process_ping6(m, pid, 0);
-			break;
-		case PG_ETHER_TYPE_VLAN:
-			info->stats.vlan_pkts++;
-			pktgen_process_vlan(m, pid);
-			break;
 		case UNKNOWN_PACKET:	/* FALL THRU */
 		default:
 			break;
@@ -728,12 +657,6 @@ pktgen_packet_classify(struct rte_mbuf *m, int pid)
 			break;
 		case PG_ETHER_TYPE_IPv4:
 			info->stats.ip_pkts++;
-			break;
-		case PG_ETHER_TYPE_IPv6:
-			info->stats.ipv6_pkts++;
-			break;
-		case PG_ETHER_TYPE_VLAN:
-			info->stats.vlan_pkts++;
 			break;
 		default:
 			break;
@@ -832,10 +755,6 @@ pktgen_send_special(port_info_t *info, uint32_t flags)
 
 		if (flags & SEND_PING4_REQUEST)
 			pktgen_send_ping4(info->pid, s);
-#ifdef INCLUDE_PING6
-		if (flags & SEND_PING6_REQUEST)
-			pktgen_send_ping6(info->pid, s);
-#endif
 	}
 
 	/* Send the requests from the Single packet setup. */
@@ -846,10 +765,6 @@ pktgen_send_special(port_info_t *info, uint32_t flags)
 
 	if (flags & SEND_PING4_REQUEST)
 		pktgen_send_ping4(info->pid, SINGLE_PKT);
-#ifdef INCLUDE_PING6
-	if (flags & SEND_PING6_REQUEST)
-		pktgen_send_ping6(info->pid, SINGLE_PKT);
-#endif
 
 	pktgen_clr_port_flags(info, SEND_ARP_PING_REQUESTS);
 }

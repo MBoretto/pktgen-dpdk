@@ -2619,32 +2619,6 @@ debug_pdump(port_info_t *info)
 	rte_pktmbuf_free(m);
 }
 
-#ifdef INCLUDE_PING6
-/**************************************************************************//**
- *
- * pktgen_ping6 - Send a IPv6 ICMP echo request packet.
- *
- * DESCRIPTION
- * Send a IPv6 ICMP echo request packet for the given ports.
- *
- * RETURNS: N/A
- *
- * SEE ALSO:
- */
-
-void
-pktgen_ping6(port_info_t *info)
-{
-	memcpy(&info->pkt[PING_PKT],
-	       &info->pkt[SINGLE_PKT], sizeof(pkt_seq_t));
-	info->pkt[PING_PKT].ipProto = PG_IPPROTO_ICMP;
-	pktgen_packet_ctor(info, PING_PKT, ICMP6_ECHO);
-	pktgen_set_port_flags(info, SEND_PING6_REQUEST);
-	pktgen_set_tx_update(info);
-}
-
-#endif
-
 /**************************************************************************//**
  *
  * pktgen_reset - Reset all ports to the default state

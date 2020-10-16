@@ -36,7 +36,6 @@
 #include "copyright_info.h"
 #include "pktgen-cmds.h"
 #include "pktgen-main.h"
-#include "lpktgenlib.h"
 #include "pktgen-display.h"
 #include "pktgen-random.h"
 #include "pktgen-log.h"
@@ -1321,98 +1320,12 @@ seq_cmd(int argc, char **argv)
 	return 0;
 }
 
-#ifdef LUA_ENABLED
-/**************************************************************************//**
- *
- * script_cmd - Command to execute a script.
- *
- * DESCRIPTION
- * Load the script file and execute the commands.
- *
- * RETURNS: N/A
- *
- * SEE ALSO:
- */
-
-static int
-script_cmd(int argc __rte_unused, char **argv)
-{
-	lua_State *L = pktgen.ld->L;
-
-	if (L == NULL) {
-		pktgen_log_error("Lua is not initialized!");
-		return -1;
-	}
-
-	if (is_help(argc, argv)) {
-		cli_printf("\nUsage: %s <script-string>\n", argv[0]);
-		return 0;
-	}
-
-	if (luaL_dofile(L, argv[1]) != 0)
-		pktgen_log_error("%s", lua_tostring(L, -1));
-	return 0;
-}
-
-/**************************************************************************//**
- *
- * cmd_exec_lua_parsed - Command to execute lua code on command line.
- *
- * DESCRIPTION
- * Execute a string of lua code
- *
- * RETURNS: N/A
- *
- * SEE ALSO:
- */
-
-static int
-exec_lua_cmd(int argc __rte_unused, char **argv __rte_unused)
-{
-	lua_State *L = pktgen.ld->L;
-	char buff[1024], *p;
-	int i;
-	size_t n, sz;
-
-	if (L == NULL) {
-		pktgen_log_error("Lua is not initialized!");
-		return -1;
-	}
-
-	if (is_help(argc, argv)) {
-		cli_printf("\nUsage: %s <script-string>\n", argv[0]);
-		return 0;
-	}
-
-	sz = sizeof(buff);
-	memset(buff, 0, sz);
-	sz--;	/* Make sure a NULL is at the end of the string */
-	n = 0;
-	for(i = 1, p = buff; i < argc; i++) {
-		if ((strlen(argv[i]) + 1) > (sz - n)) {
-			cli_printf("Input line too long > %ld bytes\n",
-				sizeof(buff));
-			return -1;
-		}
-		n += snprintf(&p[n], sz - n, "%s ", argv[i]);
-	}
-
-	if (luaL_dostring(L, buff) != 0)
-		pktgen_log_error("%s", lua_tostring(L, -1));
-	return 0;
-}
-#endif
 
 static struct cli_map misc_map[] = {
 	{ 10, "clear %P stats" },
 	{ 20, "geometry %s" },
 	{ 21, "geometry" },
 	{ 30, "load %s" },
-
-#ifdef LUA_ENABLED
-	{ 40, "script %l" },
-	{ 50, "lua %l" },
-#endif
 	{ 60, "save %s" },
 	{ 70, "redisplay" },
 	{ 100, "reset %P" },
@@ -1420,9 +1333,6 @@ static struct cli_map misc_map[] = {
 	{ 130, "port %d" },
 	{ 135, "ports per page %d" },
 	{ 140, "ping4 %P" },
-#ifdef INCLUDE_PING6
-	{ 141, "ping6 %P" },
-#endif
 	{ -1, NULL }
 };
 
@@ -1430,11 +1340,6 @@ static const char *misc_help[] = {
 	"",
 	"save <path-to-file>                - Save a configuration file using the filename",
 	"load <path-to-file>                - Load a command/script file from the given path",
-
-#ifdef LUA_ENABLED
-	"script <filename>                  - Execute the Lua script code in file (www.lua.org).",
-	"lua 'lua string'                   - Execute the Lua code in the string needs quotes",
-#endif
 	"geometry <geom>                    - Set the display geometry Columns by Rows (ColxRow)",
 	"clear <portlist> stats             - Clear the statistics",
 	"clr                                - Clear all Statistices",
@@ -1444,9 +1349,6 @@ static const char *misc_help[] = {
 	"port <number>                      - Sets the sequence packets to display for a given port",
 	"restart <portlist>                 - Restart or stop a ethernet port and restart",
 	"ping4 <portlist>                   - Send a IPv4 ICMP echo request on the given portlist",
-#ifdef INCLUDE_PING6
-	"ping6 <portlist>                   - Send a IPv6 ICMP echo request on the given portlist",
-#endif
 	CLI_HELP_PAUSE,
 	NULL
 };
@@ -1495,10 +1397,6 @@ misc_cmd(int argc, char **argv)
 			else
 				scrn_resume();
 			break;
-#ifdef LUA_ENABLED
-		case 40: script_cmd(argc, argv); break;
-		case 50: exec_lua_cmd(argc, argv); break;
-#endif
 		case 60: pktgen_save(argv[1]); break;
 		case 70: pktgen_clear_display(); break;
 		case 100:
@@ -1518,13 +1416,6 @@ misc_cmd(int argc, char **argv)
 			foreach_port(portlist, pktgen_ping4(info));
 			pktgen_force_update();
 			break;
-#ifdef INCLUDE_PING6
-		case 141:
-			portlist_parse(argv[1], &portlist);
-			foreach_port(portlist, pktgen_ping6(info));
-			pktgen_update_display();
-			break;
-#endif
 		default:
 			return cli_cmd_error("Misc invalid command", "Misc", argc, argv);
 	}
@@ -1865,10 +1756,6 @@ static struct cli_tree default_tree[] = {
 	c_cmd("geometry",	misc_cmd, 	"set the screen geometry"),
 	c_alias("geom",		"geometry",	"set or show screen geometry"),
 	c_cmd("load",		misc_cmd, 	"load command file"),
-#ifdef LUA_ENABLED
-	c_cmd("script", 	misc_cmd,	"run a Lua script"),
-	c_cmd("lua", 		misc_cmd,	"execute a Lua string"),
-#endif
 	c_cmd("save", 		misc_cmd,	"save the current state"),
 	c_cmd("redisplay",	misc_cmd,	"redisplay the screen"),
 	c_alias("cls",		"redisplay",	"redraw screen"),
@@ -1877,10 +1764,6 @@ static struct cli_tree default_tree[] = {
 	c_cmd("restart", 	misc_cmd,	"restart port"),
 	c_cmd("port", 		misc_cmd, 	"Switch between ports"),
 	c_cmd("ping4", 		misc_cmd, 	"Send a ping packet for IPv4"),
-#ifdef INCLUDE_PING6
-	c_cmd("ping6", 		misc_cmd,	"Send a ping packet for IPv6"),
-#endif
-
 	c_cmd("sequence",	seq_cmd,	"sequence command"),
 	c_alias("seq",		"sequence",	"sequence command"),
 

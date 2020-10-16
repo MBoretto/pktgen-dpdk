@@ -1,10 +1,10 @@
 sources = files(
-	'cli-functions.c', 'lpktgenlib.c', 'pktgen-cmds.c', 'pktgen.c', 'pktgen-cfg.c',
+	'cli-functions.c', 'pktgen-cmds.c', 'pktgen.c', 'pktgen-cfg.c',
 	'pktgen-main.c', 'pktgen-pcap.c', 'pktgen-range.c', 'pktgen-cpu.c',
 	'pktgen-seq.c', 'pktgen-dump.c', 'pktgen-capture.c', 'pktgen-stats.c',
-	'pktgen-port-cfg.c', 'pktgen-ipv6.c', 'pktgen-ipv4.c', 'pktgen-arp.c',
-	'pktgen-gre.c', 'pktgen-ether.c', 'pktgen-tcp.c', 'pktgen-udp.c', 'pktgen-vlan.c',
-	'pktgen-random.c', 'pktgen-display.c', 'pktgen-log.c', 'pktgen-gtpu.c',
+	'pktgen-port-cfg.c', 'pktgen-ipv4.c', 'pktgen-arp.c',
+	'pktgen-ether.c', 'pktgen-udp.c', 
+	'pktgen-random.c', 'pktgen-display.c', 'pktgen-log.c',
 	'pktgen-latency.c', 'pktgen-rate.c'
 )
 

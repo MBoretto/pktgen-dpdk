@@ -49,9 +49,6 @@ void pktgen_clear_display(void);
 int pktgen_save(char *path);
 void pktgen_cls(void);
 void pktgen_ping4(port_info_t *info);
-#ifdef INCLUDE_PING6
-void pktgen_ping6(port_info_t *info);
-#endif
 void pktgen_clear_stats(port_info_t *info);
 void pktgen_reset(port_info_t *info);
 void pktgen_port_restart(port_info_t *info);
