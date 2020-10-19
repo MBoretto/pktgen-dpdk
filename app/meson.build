@@ -1,5 +1,5 @@
 sources = files(
-	'cli-functions.c', 'pktgen-cmds.c', 'pktgen.c', 'pktgen-cfg.c',
+	'pktgen-cmds.c', 'pktgen.c', 'pktgen-cfg.c',
 	'pktgen-main.c', 'pktgen-pcap.c', 'pktgen-range.c', 'pktgen-cpu.c',
 	'pktgen-seq.c', 'pktgen-dump.c', 'pktgen-capture.c', 'pktgen-stats.c',
 	'pktgen-port-cfg.c', 'pktgen-ipv4.c', 'pktgen-arp.c',
@@ -18,7 +18,7 @@ endif
 
 cflags = ['-D__PROJECT_VERSION="' + meson.project_version() + '"']
 
-deps = [dpdk, common, utils, vec, plugin, cli, lua]
+deps = [dpdk, common, cli, utils]
 
 if get_option('enable_gui')
     deps += dependency('glib-2.0', required: true)

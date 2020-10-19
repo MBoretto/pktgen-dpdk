@@ -14,8 +14,6 @@
 
 #include <rte_malloc.h>
 
-#include "lua_config.h"
-
 #include "pktgen-display.h"
 #include "pktgen-log.h"
 

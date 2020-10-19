@@ -7,9 +7,7 @@
 /* Created 2010 by Keith Wiles @ intel.com */
 
 #include <arpa/inet.h>
-
 #include <cli_scrn.h>
-#include <lua_config.h>
 
 #include "pktgen.h"
 #include "pktgen-log.h"

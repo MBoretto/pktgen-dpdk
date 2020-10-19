@@ -9,7 +9,6 @@
 #include <stdio.h>
 
 #include <pg_delay.h>
-#include <lua_config.h>
 
 #include "pktgen-cmds.h"
 #include "pktgen-display.h"

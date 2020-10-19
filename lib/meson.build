@@ -3,7 +3,7 @@
 
 subdir('common')
 subdir('utils')
-subdir('vec')
-subdir('plugin')
+#subdir('vec')
+#subdir('plugin')
 subdir('cli')
-subdir('lua')
+#subdir('lua')

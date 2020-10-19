@@ -305,8 +305,6 @@ typedef struct pktgen_s {
 	uint64_t max_total_ipackets;	/**< Total Max seen input packet rate */
 	uint64_t max_total_opackets;	/**< Total Max seen output packet rate */
 
-	pthread_t thread;	/**< Thread structure for Lua server */
-
 	uint64_t counter;	/**< A debug counter */
 	uint64_t mem_used;	/**< Display memory used counters per ports */
 	uint64_t total_mem_used;/**< Display memory used for all ports */
@@ -330,7 +328,6 @@ enum {						/* Pktgen flags bits */
 	NUMA_SUPPORT_FLAG       = (1 << 3),	/**< Enable NUMA support */
 	IS_SERVER_FLAG          = (1 << 4),	/**< Pktgen is a Server */
 	ENABLE_GUI_FLAG         = (1 << 5),	/**< GUI support is enabled */
-	LUA_SHELL_FLAG          = (1 << 6),	/**< Enable Lua Shell */
 	TX_DEBUG_FLAG           = (1 << 7),	/**< TX Debug output */
 	Not_USED                = (1 << 8),	/**< Not Used */
 	FAKE_PORTS_FLAG         = (1 << 9),	/**< Fake ports enabled */

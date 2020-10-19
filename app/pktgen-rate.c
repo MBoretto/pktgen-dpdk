@@ -8,8 +8,6 @@
 
 #include <stdio.h>
 
-#include "lua_config.h"
-
 #include "pktgen-cmds.h"
 #include "pktgen-display.h"
 

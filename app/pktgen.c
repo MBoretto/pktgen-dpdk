@@ -11,7 +11,6 @@
 
 #include <pg_delay.h>
 #include <rte_lcore.h>
-#include <lua_config.h>
 #include <rte_net.h>
 #include <rte_arp.h>
 #include <rte_cycles.h>

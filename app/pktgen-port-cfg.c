@@ -8,7 +8,6 @@
 
 #include <pg_delay.h>
 #include <cli_scrn.h>
-#include <lua_config.h>
 
 #include "pktgen-port-cfg.h"
 

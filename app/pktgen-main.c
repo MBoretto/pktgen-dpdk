@@ -9,7 +9,6 @@
 #include <execinfo.h>
 #include <signal.h>
 
-#include <lua_config.h>
 #include <pg_delay.h>
 
 #include "pktgen-main.h"
@@ -19,7 +18,7 @@
 #include "pktgen-cpu.h"
 #include "pktgen-display.h"
 #include "pktgen-log.h"
-#include "cli-functions.h"
+//#include "cli-functions.h"
 
 /**************************************************************************//**
  *
@@ -178,11 +177,6 @@ pktgen_parse_args(int argc, char **argv)
 		case 'p':
 			/* Port mask not used anymore */
 			break;
-
-		case 'f':	/* Command file or Lua script. */
-			cli_add_cmdfile(optarg);
-			break;
-
 		case 'l':	/* Log file */
 			pktgen_log_set_file(optarg);
 			break;
@@ -341,7 +335,7 @@ RTE_FINI(pktgen_fini)
 	scrn_setw(1);	/* Reset the window size, from possible crash run. */
 	scrn_printf(999, 1, "\n");	/* Move the cursor to the bottom of the screen again */
 	scrn_destroy();
-	cli_destroy();
+	//cli_destroy();
 }
 
 /**************************************************************************//**
@@ -404,8 +398,8 @@ main(int argc, char **argv)
 	argc -= ret;
 	argv += ret;
 
-	if (pktgen_cli_create())
-		return -1;
+	// if (pktgen_cli_create())
+	//  	return -1;
 
 	/* parse application arguments (after the EAL ones) */
 	ret = pktgen_parse_args(argc, argv);
@@ -414,11 +408,12 @@ main(int argc, char **argv)
 
 	i = pg_get_initial_lcore();
 	if (get_lcore_rxcnt(pktgen.l2p, i) || get_lcore_txcnt(pktgen.l2p, i)) {
-		cli_printf("*** Error can not use initial lcore for a port\n");
-		cli_printf("    The initial lcore is %d\n", pg_get_initial_lcore());
+		// cli_printf("*** Error can not use initial lcore for a port\n");
+		// cli_printf("    The initial lcore is %d\n", pg_get_initial_lcore());
+		pktgen_log_info("*** Error can not use initial lcore for a port\n");
+		pktgen_log_info("    The initial lcore is %d\n", pg_get_initial_lcore());
 		exit(-1);
 	}
-
 	pktgen.hz = rte_get_timer_hz();	/* Get the starting HZ value. */
 
 	scrn_create_with_defaults(pktgen.flags & ENABLE_THEME_FLAG);
@@ -474,8 +469,55 @@ main(int argc, char **argv)
 		}
 	}
 
-	pktgen_log_info("=== Run CLI\n");
-	pktgen_cli_start();
+	//pktgen_log_info("=== Run CLI\n");
+	//pktgen_cli_start();
+
+
+        // // portlist_t portlist;
+        // // int state;
+        // // DISABLE_STATE = 0, ENABLE_STATE = 1 
+        // // state = ENABLE_STATE;
+        // // portlist_parse(argv[1], &portlist);
+        // // foreach_port(portlist, enable_garp(info, state));
+
+
+		int port = 0; 
+		port_info_t *info = &pktgen.info[port];
+
+		struct pg_ipaddr ip;
+		int ip_ver;
+		
+
+		char *p;
+		char myip[] = "10.194.21.206/24";
+		p = strchr(myip, '/');
+		if (!p) {
+			pktgen_log_info("src IP address should contain subnet value, default /32 for IPv4, /128 for IPv6\n");
+		}
+		//char myip[] = "172.172.0.5/24";
+
+		ip_ver = _atoip(myip, PG_IPADDR_V4 | PG_IPADDR_NETWORK, &ip, sizeof(ip));
+		printf(myip);
+		printf(" OOOOOOOOOO %i  %c", ip_ver, ip.ipv4.s_addr);
+		//foreach_port(portlist,single_set_ipaddr(info, 's', &ip, ip_ver));
+
+
+		single_set_ipaddr(info, 's', &ip, ip_ver); //s source d destination
+		pktgen_update_display();
+		//void single_set_ipaddr(port_info_t *info, char type,	struct pg_ipaddr *ip, int ip_ver);
+		
+
+        enable_garp(info, ENABLE_STATE);
+		enable_icmp_echo(info, ENABLE_STATE);
+
+		// //foreach_port(portlist, enable_icmp_echo(info, state));
+		// //foreach_port(portlist, enable_icmp_echo(info, state));
+
+
+
+
+	sleep(60);
+
 
 	pktgen_stop_running();
 
@@ -486,15 +528,20 @@ main(int argc, char **argv)
 	scrn_destroy();
 
 	/* Wait for all of the cores to stop running and exit. */
-	rte_eal_mp_wait_lcore();
+	
 
+
+
+
+	rte_eal_mp_wait_lcore();
 	RTE_ETH_FOREACH_DEV(i) {
+        sleep(80);
 		rte_eth_dev_stop(i);
 		rte_delay_us_sleep(100 * 1000);
 		rte_eth_dev_close(i);
 	}
 
-	cli_destroy();
+	//cli_destroy();
 
 	return 0;
 }
@@ -505,8 +552,6 @@ main(int argc, char **argv)
  *
  * DESCRIPTION
  * Stop all of the logical core threads to stop pktgen cleanly.
- *
- * RETURNS: N/A
  *
  * SEE ALSO:
  */
